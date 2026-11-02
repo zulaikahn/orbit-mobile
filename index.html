@@ -83,7 +83,7 @@ sources=async function(type,id,title,inline){await originalSourcesForFlow(type,i
 async function requestVideoSources(a,type,id){if(a.base==='builtin')return resource(a,'stream',type,id);const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);try{const response=await fetch(a.base+'/stream/'+encodeURIComponent(type)+'/'+encodeURIComponent(id)+'.json',{signal:controller.signal});if(!response.ok)throw Error('http');const data=await response.json();if(!Array.isArray(data.streams))throw Error('response');return data}finally{clearTimeout(timer)}}
 function sourceKind(s){if(s.infoHash||s.ytId||s.behaviorHints?.notWebReady||s.behaviorHints?.proxyHeaders||/\.(mkv|avi|mov|wmv)(?:[?#]|$)/i.test(s.url||''))return 'helper';if(safeUrl(s.url))return 'direct';if(safeUrl(s.externalUrl))return 'external';return 'helper'}
 function sourceSummary(states,total){const pending=states.filter(s=>s.status==='pending').length,failed=states.filter(s=>s.status==='failed').length;if(pending)return 'Checking '+pending+' video connection'+(pending===1?'':'s')+'…'+(total?' '+total+' sources found.':' This can take up to 45 seconds.');if(total)return total+' source'+(total===1?'':'s')+' returned.'+(failed?' Some connections failed.':'');if(failed)return 'Could not complete the video lookup. '+failed+' connection'+(failed===1?' failed.':'s failed.')+' This does not mean the title has no video.';return 'The connected services responded, but returned no videos for this title.'}
-sources=async function(type,id,title,inline){const target=$('#streamChoices');if(!target)return;const version=++sourceRequest,token=viewToken;const addons=allAddons().filter(a=>addonSupports(a,'stream',type,id));const states=addons.map(a=>({name:a.manifest.name||'Video connection',status:'pending',count:0}));let streams=[];function current(){return version===sourceRequest&&token===viewToken&&target.isConnected}function button(label,fn){const b=document.createElement('button');b.className='secondary';b.textContent=label;b.onclick=fn;return b}function draw(){if(!current())return;target.replaceChildren();const heading=document.createElement('h3');heading.textContent='Video sources';target.append(heading);const status=document.createElement('p');status.setAttribute('role','status');status.textContent=addons.length||inline?.length?sourceSummary(states,streams.length):'No video service is connected for this title.';target.append(status);for(const state of states){const item=document.createElement('p');item.className='store-note';item.textContent=state.name+' · '+(state.status==='pending'?'Checking…':state.status==='failed'?'Connection failed — retry below':state.count?state.count+' sources':'Responded — no sources');target.append(item)}const rows=document.createElement('div');target.append(rows);streams.forEach(s=>{const row=document.createElement('div');row.style='padding:14px 0;border-top:1px solid #333';const label=document.createElement('p');label.style='white-space:pre-line';label.textContent=(s.name||s.addon||'Video')+' · '+(s.title||s.description||'Source');row.append(label);const kind=sourceKind(s);if(kind==='torrent'){const b=button('▶ Play',()=>{lastSourceView={type,id,title,inline};playTorrent(title,s,type+':'+id)});b.className='primary';row.append(b)}else if(kind==='direct'){const b=button('▶ Play here',()=>{lastSourceView={type,id,title,inline};playSource(title,safeUrl(s.url),type+':'+id)});b.className='primary';row.append(b)}else if(kind==='external'){const link=document.createElement('a');link.className='secondary';link.href=safeUrl(s.externalUrl);link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open provider ↗';row.append(link)}else{const note=document.createElement('p');note.className='store-note';note.textContent='This source cannot play in Zunavo Mobile. It needs a separate playback engine. Choose a direct HTTPS video source.';row.append(note)}rows.append(row)});if(!states.some(s=>s.status==='pending')){const actions=document.createElement('div');actions.className='actions';actions.append(button('Retry video lookup',()=>sources(type,id,title,inline)),button('Test Zunavo player',()=>playSource('Zunavo player test · Big Buck Bunny','https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4','movie:orbit:bbb')),button('Video connections',()=>manager()));target.append(actions)}}draw();if(inline?.length){states.length=0;streams=inline.map(s=>({...s,addon:'Title source'}));draw();return}await Promise.allSettled(addons.map(async(a,i)=>{try{const data=await requestVideoSources(a,type,id);states[i].status='ok';states[i].count=data.streams.length;streams.push(...data.streams.map(s=>({...s,addon:a.manifest.name})));streams.sort((a,b)=>(sourceKind(a)==='direct'?0:1)-(sourceKind(b)==='direct'?0:1))}catch{states[i].status='failed'}draw()}));draw()};
+sources=async function(type,id,title,inline){const target=$('#streamChoices');if(!target)return;const version=++sourceRequest,token=viewToken;const addons=allAddons().filter(a=>addonSupports(a,'stream',type,id));const states=addons.map(a=>({name:a.manifest.name||'Video connection',status:'pending',count:0}));let streams=[];function current(){return version===sourceRequest&&token===viewToken&&target.isConnected}function button(label,fn){const b=document.createElement('button');b.className='secondary';b.textContent=label;b.onclick=fn;return b}function draw(){if(!current())return;target.replaceChildren();const heading=document.createElement('h3');heading.textContent='Video sources';target.append(heading);const status=document.createElement('p');status.setAttribute('role','status');status.textContent=addons.length||inline?.length?sourceSummary(states,streams.length):'No video service is connected for this title.';target.append(status);for(const state of states){const item=document.createElement('p');item.className='store-note';item.textContent=state.name+' · '+(state.status==='pending'?'Checking…':state.status==='failed'?'Connection failed — retry below':state.count?state.count+' sources':'Responded — no sources');target.append(item)}const rows=document.createElement('div');target.append(rows);streams.forEach(s=>{const row=document.createElement('div');row.style='padding:14px 0;border-top:1px solid #333';const label=document.createElement('p');label.style='white-space:pre-line';label.textContent=(s.name||s.addon||'Video')+' · '+(s.title||s.description||'Source');row.append(label);const kind=sourceKind(s);if(kind==='torrent'){const b=button('▶ Play',()=>{lastSourceView={type,id,title,inline};playTorrent(title,s,type+':'+id)});b.className='primary';row.append(b)}else if(kind==='direct'){const b=button('▶ Play here',()=>{lastSourceView={type,id,title,inline};playSource(title,safeUrl(s.url),type+':'+id)});b.className='primary';row.append(b)}else if(kind==='external'){const link=document.createElement('a');link.className='secondary';link.href=safeUrl(s.externalUrl);link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open provider ↗';row.append(link)}else{const note=document.createElement('p');note.className='store-note';note.textContent='Source found. This browser needs a compatible video link to play it. Torrent files can use the experimental Android app; iPhone browser torrent playback is not available yet.';row.append(note)}rows.append(row)});if(!states.some(s=>s.status==='pending')){const actions=document.createElement('div');actions.className='actions';actions.append(button('Retry video lookup',()=>sources(type,id,title,inline)),button('Test Zunavo player',()=>playSource('Zunavo player test · Big Buck Bunny','https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4','movie:orbit:bbb')),button('Video connections',()=>manager()));target.append(actions)}}draw();if(inline?.length){states.length=0;streams=inline.map(s=>({...s,addon:'Title source'}));draw();return}await Promise.allSettled(addons.map(async(a,i)=>{try{const data=await requestVideoSources(a,type,id);states[i].status='ok';states[i].count=data.streams.length;streams.push(...data.streams.map(s=>({...s,addon:a.manifest.name})));streams.sort((a,b)=>(sourceKind(a)==='direct'?0:1)-(sourceKind(b)==='direct'?0:1))}catch{states[i].status='failed'}draw()}));draw()};
 let lastSourceView=null;
 const playerWithSubtitles=playSource;
 playSource=function(title,url,key){playerWithSubtitles(title,url,key);const video=$('#orbitPlayer'),status=$('#playerStatus'),token=viewToken;status.textContent='Opening video…';let stalledTimer=setTimeout(()=>{if(token===viewToken&&video.isConnected&&video.readyState<2)status.textContent='The player is ready, but the video host is taking too long to send video. Try another source.'},20000);video.addEventListener('playing',()=>{clearTimeout(stalledTimer);status.textContent='Playing · progress saved on this device.'});video.addEventListener('loadeddata',()=>{clearTimeout(stalledTimer);status.textContent='Video loaded. Press Play if it did not start automatically.'});video.addEventListener('error',()=>{clearTimeout(stalledTimer);const errors={1:'Playback was interrupted.',2:'The video host could not send the video.',3:'The browser could not decode this video.',4:'The video format is unsupported or the video host denied access.'};status.textContent=errors[video.error?.code]||'The video could not load. Try another source.'});const back=$('#playerBack');back.textContent='← Back to video sources';back.onclick=()=>{if(lastSourceView){const state=lastSourceView;addonShell(state.title,'<div id="streamChoices"></div>');sources(state.type,state.id,state.title,state.inline)}else manager()};video.play().catch(()=>{if(token===viewToken&&!video.error)status.textContent='Press Play in the video controls to start.'})};
@@ -176,4 +176,112 @@ const mobileDetails=openTitle;openTitle=function(...args){mobileDetails(...args)
 const mobileManagerWithSample=manager;manager=function(){mobileManagerWithSample();$('#mobileTestPlayer').onclick=()=>playSource('Zunavo player test · Colour and sound',new URL('./player-test.mp4',location.href).href,'mobile:generated-test')};addonNav.onclick=()=>manager();
 const mobilePlayerWithHints=playSource;playSource=function(...args){mobilePlayerWithHints(...args);const hint=$('#dialogContent .video-fullscreen-actions small');if(hint)hint.textContent='Tap to expand the video. Use Done or Back to exit.'};
 
+
+
+
+// BEGIN ZUNAVO LOADING
+// Shared by desktop and mobile web. Native Android has the same loading states.
+(() => {
+  let dispose = () => {};
+  const previousPlayer = playSource;
+  const style = document.createElement('style');
+  style.textContent = '.zunavo-loading{display:flex;align-items:center;gap:12px;margin:16px 0;min-height:28px}.zunavo-loading-wheel{width:20px;height:20px;border:3px solid #373b42;border-top-color:#b4ef74;border-radius:50%;animation:zunavo-loading-spin 1s linear infinite;flex-shrink:0}@keyframes zunavo-loading-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.zunavo-loading-wheel{animation:none}}';
+  document.head.append(style);
+  function start(args, attempt = 0, resume) {
+    dispose();
+    previousPlayer(...args);
+    const video = document.querySelector('#orbitPlayer');
+    if (!video) return;
+    const oldStatus = document.querySelector('#playerStatus');
+    if (oldStatus) oldStatus.hidden = true;
+    const panel = document.createElement('div');panel.className = 'zunavo-loading';
+    const wheel = document.createElement('span');wheel.className = 'zunavo-loading-wheel';wheel.setAttribute('aria-hidden','true');
+    const label = document.createElement('span');label.setAttribute('role','status');label.setAttribute('aria-live','polite');
+    const retry = document.createElement('button');retry.className = 'secondary';retry.textContent = 'Try again';retry.hidden = true;
+    panel.append(wheel,label,retry);video.insertAdjacentElement('afterend',panel);
+    const events = new AbortController();let timer, next, dead = false, pending = false, state = 'loading';
+    let lastProgress = Date.now(), lastTime = video.currentTime, lastBuffer = 0;
+    const listen = (name, callback) => video.addEventListener(name, callback, {signal:events.signal});
+    const valid = () => !dead && video.isConnected && dialog.open;
+    const show = text => {if (label.textContent !== text) label.textContent = text;};
+    const fail = format => {clearTimeout(next);pending=false;state='failed';wheel.hidden=true;retry.hidden=false;show(format?'This video format can’t play here. Go back to choose another video.':'We couldn’t load this video. Try again or go back to choose another video.');};
+    const recover = () => {
+      if (!valid() || pending || state==='failed') return;
+      if (attempt >= 2) {fail(false);return;}
+      pending=true;state='reconnecting';wheel.hidden=false;show('Reconnecting…');
+      const position = Number.isFinite(video.currentTime) ? video.currentTime : resume;
+      next=setTimeout(()=>{if(valid())start(args,attempt+1,position);},(attempt+1)*1500);
+    };
+    retry.onclick = () => start(args,0,video.currentTime);
+    listen('loadedmetadata',()=>{if(resume>0 && Number.isFinite(video.duration) && resume<video.duration-1)video.currentTime=resume;});
+    listen('playing',()=>{if(pending)return;state='playing';wheel.hidden=true;show('Playing');lastProgress=Date.now();});
+    listen('waiting',()=>{if(!pending && state!=='failed'){state='loading';wheel.hidden=false;lastProgress=Date.now();}});
+    listen('stalled',()=>{if(!pending && state!=='failed'){state='loading';wheel.hidden=false;}});
+    listen('pause',()=>{if(state==='playing'){state='paused';wheel.hidden=true;show('Paused');}});
+    listen('ended',()=>{state='ended';wheel.hidden=true;show('Finished');});
+    listen('error',()=>{if(video.error?.code===4)fail(true);else recover();});
+    const observer = new MutationObserver(()=>{
+      if(valid() && state!=='playing' && /could not|couldn’t|unsupported|unavailable|cannot play|taking too long/i.test(oldStatus?.textContent||''))recover();
+    });
+    if(oldStatus)observer.observe(oldStatus,{childList:true,characterData:true,subtree:true});
+    function tick() {
+      if(!valid()){dispose();return;}
+      let end=video.currentTime;
+      for(let i=0;i<video.buffered.length;i++)if(video.buffered.start(i)<=video.currentTime+.1 && video.buffered.end(i)>end)end=video.buffered.end(i);
+      if(video.currentTime>lastTime+.05 || end>lastBuffer+.1){lastProgress=Date.now();lastTime=video.currentTime;lastBuffer=end;}
+      if(state==='loading' && !pending){
+        const seconds=Math.max(0,Math.floor(end-video.currentTime));
+        show((attempt?'Reconnecting…':'Loading video…')+(seconds?' · '+seconds+(seconds===1?' second ready':' seconds ready'):''));
+        if(Date.now()-lastProgress>25000)recover();
+      }
+    }
+    dispose=()=>{dead=true;events.abort();clearInterval(timer);clearTimeout(next);observer.disconnect();};
+    tick();timer=setInterval(tick,500);
+    video.play().catch(()=>{if(valid() && !video.error && !pending){state='paused';wheel.hidden=true;show('Tap Play to start');}});
+  }
+  playSource = (...args) => start(args);
+  dialog.addEventListener('close',()=>dispose());
+})();
+
+// END ZUNAVO LOADING
+
+
+// BEGIN MOBILE TORRENTIO
+// The connection is opt-in and is stored on this device, just like other add-ons.
+(() => {
+  const torrentioBase='https://torrentio.strem.fun';
+  const isTorrentio=addon=>addon.base===torrentioBase || addon.manifest?.id==='com.stremio.torrentio.addon';
+  function validateTorrentio(manifest){
+    if(manifest?.id!=='com.stremio.torrentio.addon' || !manifest.version || !Array.isArray(manifest.resources) || !Array.isArray(manifest.types) || !manifest.resources.some(r=>(typeof r==='string'?r:r.name)==='stream'))throw Error('This service did not return a valid Torrentio connection.');
+  }
+  const previousManager=manager;
+  manager=function(){
+    previousManager();
+    const body=$('#dialogContent .detail-body'),heading=body.querySelector('h2');
+    const saved=installed.find(isTorrentio);
+    const native=window.Capacitor?.getPlatform?.()==='android' && window.Capacitor.isPluginAvailable('NativeTorrent');
+    const card=document.createElement('section');card.className='settings-group';card.id='torrentioConnection';
+    card.innerHTML='<h3>Torrentio</h3><p>Find video sources for movies and episodes. Your selected titles are sent to Torrentio when you search for videos.</p><p class="store-note">Connecting finds sources; it does not add torrent playback to this browser. Torrent files need the Android app or another compatible playback service. iPhone browser torrent playback is not available yet.</p><button class="primary" id="connectMobileTorrentio">'+(saved?'Check Torrentio connection':'Connect Torrentio')+'</button><p id="torrentioConnectionStatus" role="status">'+(saved?'Connected on this device.':'Not connected on this device.')+'</p>';
+    if(native)card.querySelector('.store-note').textContent='This Android app includes experimental torrent playback. Video availability and format support vary.';
+    heading.insertAdjacentElement('afterend',card);
+    const button=$('#connectMobileTorrentio'),notice=$('#torrentioConnectionStatus'),token=viewToken;
+    button.onclick=async()=>{
+      button.disabled=true;notice.textContent='Connecting…';
+      try{
+        const base=saved?.base || torrentioBase;
+        const manifest=await addonJSON(base+'/manifest.json');validateTorrentio(manifest);
+        if(token!==viewToken || !card.isConnected)return;
+        const previous=installed;
+        installed=[...installed.filter(a=>a.base!==base),{base,manifest}];
+        try{persistAddons();}catch(error){installed=previous;throw Error('This browser could not save the connection.');}
+        notice.textContent='Torrentio connected. Open a show and look for video sources.';
+        button.textContent='Check Torrentio connection';
+      }catch(error){if(token===viewToken && card.isConnected)notice.textContent='Couldn’t connect to Torrentio. Try again, or use Add a custom connection for your configured service.';}
+      finally{if(button.isConnected)button.disabled=false;}
+    };
+  };
+  addonNav.onclick=()=>manager();
+})();
+
+// END MOBILE TORRENTIO
 </script></body></html>
